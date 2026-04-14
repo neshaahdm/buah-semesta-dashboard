@@ -1,8 +1,11 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "python3", "pkg-config", "cairo", "pango", "libpng", "libjpeg", "giflib", "librsvg", "pixman", "fontconfig", "freetype"]
+nixPkgs = ["nodejs_20", "python3", "pkg-config", "cairo", "pango", "libpng", "libjpeg", "giflib", "librsvg", "pixman", "fontconfig", "freetype", "gcc", "gnumake"]
 
 [phases.install]
-cmds = ["npm install"]
+cmds = ["npm install --include=dev"]
+
+[phases.build]
+cmds = ["node -e \"require('canvas'); console.log('canvas native OK')\""]
 
 [start]
-cmd = "npm start"
+cmd = "NODE_ENV=production node dist/index.cjs"
