@@ -303,6 +303,44 @@ export async function registerRoutes(
     }
   });
 
+  // POST /api/seed — Bulk-insert source images (used to populate fresh DB)
+  app.post("/api/seed", (req, res) => {
+    try {
+      const images = req.body as Array<{
+        drive_file_id: string;
+        file_name: string;
+        mime_type?: string;
+        thumbnail_url?: string;
+        status?: string;
+        created_at?: string;
+      }>;
+      if (!Array.isArray(images)) {
+        return res.status(400).json({ error: "Expected array of images" });
+      }
+      let inserted = 0;
+      let skipped = 0;
+      for (const img of images) {
+        try {
+          storage.createSourceImage({
+            driveFileId: img.drive_file_id,
+            fileName: img.file_name,
+            mimeType: img.mime_type || "image/jpeg",
+            thumbnailUrl: img.thumbnail_url || null,
+            status: img.status || "pending",
+            createdAt: img.created_at || new Date().toISOString(),
+          });
+          inserted++;
+        } catch (e: any) {
+          if (e.message?.includes("UNIQUE")) skipped++;
+          else throw e;
+        }
+      }
+      res.json({ message: "Seed complete", inserted, skipped });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // POST /api/scan — Trigger manual scan
   app.post("/api/scan", (_req, res) => {
     try {
