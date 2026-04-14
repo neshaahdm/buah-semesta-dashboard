@@ -553,6 +553,13 @@ export async function generateCarousel(
     fs.writeFileSync(path.join(outputDir, filenames[i]), buf);
   });
 
+  // Save fruit content so caption regeneration and regeneration can reference it
+  fs.writeFileSync(
+    path.join(outputDir, "content.json"),
+    JSON.stringify(content, null, 2),
+    "utf8"
+  );
+
   return {
     slideCount: 3,
     slidePaths: filenames.map((f) => `${imageId}/${f}`),

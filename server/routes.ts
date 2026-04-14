@@ -93,17 +93,24 @@ export async function registerRoutes(
         sourceImage.fileName
       );
 
-      // Generate AI caption
+      // Generate AI caption — read fruit name from saved content.json if available
       let caption = "";
       let hashtags = "";
       try {
-        const captionResult = await generateCaption(sourceImage.fileName, result.slideCount);
+        let fruitName: string | undefined;
+        try {
+          const contentFile = path.join(result.outputDir, "content.json");
+          if (fs.existsSync(contentFile)) {
+            fruitName = JSON.parse(fs.readFileSync(contentFile, "utf8")).fruitName;
+          }
+        } catch {}
+        const captionResult = await generateCaption(sourceImage.fileName, result.slideCount, fruitName);
         caption = captionResult.caption;
         hashtags = captionResult.hashtags;
       } catch (captionErr) {
         console.error("Caption generation failed, using defaults:", captionErr);
-        caption = `Fresh from Buah Semesta 🍉🥭 Check out our premium selection!`;
-        hashtags = "#BuahSemesta #FreshFruits #HealthyLiving #TropicalFruits #FruitLovers";
+        caption = "";
+        hashtags = "";
       }
 
       // Save to DB with draft status (pending content review)
@@ -166,13 +173,30 @@ export async function registerRoutes(
       const sourceImage = storage.getSourceImage(carousel.sourceImageId);
       const fileName = sourceImage?.fileName || "fruit-image.jpg";
 
-      const captionResult = await generateCaption(fileName, carousel.slideCount || 1);
+      // Try to read stored fruit name from content.json
+      let fruitName: string | undefined;
+      try {
+        const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
+        if (slides.length > 0) {
+          const dirName = slides[0].split("/")[0];
+          const contentFile = path.join("./output/carousels", dirName, "content.json");
+          if (fs.existsSync(contentFile)) {
+            fruitName = JSON.parse(fs.readFileSync(contentFile, "utf8")).fruitName;
+          }
+        }
+      } catch {}
+
+      // Pass revision note if provided
+      const { revisionNote } = req.body;
+
+      const captionResult = await generateCaption(fileName, carousel.slideCount || 1, fruitName, revisionNote);
       storage.updateCarouselCaption(id, captionResult.caption, captionResult.hashtags);
 
       const updated = storage.getCarousel(id);
       res.json(updated);
     } catch (err: any) {
-      res.status(500).json({ error: err.message });
+      console.error("Regenerate caption error:", err);
+      res.status(500).json({ error: err.message || "Failed to regenerate caption" });
     }
   });
 
@@ -206,6 +230,24 @@ export async function registerRoutes(
       }
 
       res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // DELETE /api/carousels/:id — Delete a carousel so it can be regenerated
+  app.delete("/api/carousels/:id", (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const carousel = storage.getCarousel(id);
+      if (!carousel) {
+        res.status(404).json({ error: "Carousel not found" });
+        return;
+      }
+      // Also reset source image status back to pending
+      storage.updateSourceImageStatus(carousel.sourceImageId, "pending");
+      storage.deleteCarousel(id);
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

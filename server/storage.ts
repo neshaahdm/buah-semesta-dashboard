@@ -59,6 +59,8 @@ export interface IStorage {
   updateCarouselReview(id: number, status: string, note: string): void;
   approveCarousel(id: number): void;
 
+  deleteCarousel(id: number): void;
+
   // Stats
   getStats(): {
     totalImages: number;
@@ -144,6 +146,10 @@ export class DatabaseStorage implements IStorage {
       .set({ status: "approved", approvedAt: new Date().toISOString() })
       .where(eq(carousels.id, id))
       .run();
+  }
+
+  deleteCarousel(id: number): void {
+    db.delete(carousels).where(eq(carousels.id, id)).run();
   }
 
   getStats() {

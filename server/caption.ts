@@ -7,30 +7,48 @@ export interface CaptionResult {
   hashtags: string;
 }
 
+/**
+ * Generate an Instagram caption for a fruit carousel.
+ * @param fileName  - source image file name (used to hint fruit type if fruitName not provided)
+ * @param slideCount - number of slides
+ * @param fruitName  - identified fruit name from the carousel content
+ * @param revisionNote - optional user revision note to guide regeneration
+ */
 export async function generateCaption(
   fileName: string,
-  slideCount: number
+  slideCount: number,
+  fruitName?: string,
+  revisionNote?: string
 ): Promise<CaptionResult> {
+  // Derive best fruit name hint
+  const fruitHint = fruitName && fruitName !== "Buah Segar"
+    ? fruitName
+    : fileName.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+
+  const revisionSection = revisionNote
+    ? `\n\nCatatan revisi dari editor: "${revisionNote}" — pastikan caption baru mempertimbangkan masukan ini.`
+    : "";
+
   const message = await client.messages.create({
     model: "claude-sonnet-4-5",
     max_tokens: 512,
     messages: [
       {
         role: "user",
-        content: `Kamu adalah copywriter media sosial untuk "Buah Semesta", brand buah segar Indonesia. Tulis caption Instagram menarik untuk carousel post 3 slide berikut:
+        content: `Kamu adalah copywriter media sosial untuk "Buah Semesta", brand buah segar Indonesia. Tulis caption Instagram menarik untuk carousel post tentang **${fruitHint}**:
 
-Slide 1: Foto buah segar + manfaat kesehatan
-Slide 2: Tips cara memilih buah yang bagus  
-Slide 3: Tips cara menyimpan buah agar tahan lama
+Slide 1: Foto ${fruitHint} + manfaat kesehatan
+Slide 2: Tips cara memilih ${fruitHint} yang bagus  
+Slide 3: Tips cara menyimpan ${fruitHint} agar tahan lama
 
 Panduan penulisan:
-- Bahasa Indonesia, nada hangat dan bersahabat
-- 2–3 kalimat, singkat & engaging
+- Bahasa Indonesia, nada hangat dan bersahabat seperti ngobrol ke teman
+- 2–3 kalimat, singkat & engaging, sebut nama buahnya
 - Sertakan ajakan bertindak (CTA) seperti order, DM, atau swipe
 - 1–2 emoji yang natural
-- Jangan tulis hashtag di dalam caption
+- Jangan tulis hashtag di dalam caption${revisionSection}
 
-Kemudian berikan 8–10 hashtag yang relevan di baris terpisah.
+Kemudian berikan 8–10 hashtag yang relevan termasuk nama buahnya di baris terpisah.
 
 Format jawaban PERSIS seperti ini:
 CAPTION: [caption di sini]
@@ -47,11 +65,11 @@ HASHTAGS: [hashtag di sini]`,
 
   const caption = captionMatch
     ? captionMatch[1].trim()
-    : `Buah segar pilihan langsung dari kebun terbaik 🍊 Swipe untuk lihat manfaat, cara pilih, dan cara simpannya! DM kami untuk order sekarang.`;
+    : `${fruitHint} segar pilihan langsung dari kebun terbaik 🍊 Swipe untuk lihat manfaat, cara pilih, dan cara simpannya! DM kami untuk order sekarang.`;
 
   const hashtags = hashtagsMatch
     ? hashtagsMatch[1].trim()
-    : "#BuahSemesta #BuahSegar #FreshFruits #BuahTropis #HidupSehat #MakanSehat #BuahLokal #JualBuah #FruitLovers #HealthyLifestyle";
+    : `#BuahSemesta #${fruitHint.replace(/\s+/g,"")} #BuahSegar #FreshFruits #BuahTropis #HidupSehat #MakanSehat #BuahLokal #JualBuah #FruitLovers`;
 
   return { caption, hashtags };
 }

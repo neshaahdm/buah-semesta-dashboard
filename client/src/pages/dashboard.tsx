@@ -339,10 +339,11 @@ function ContentReviewPanel({
 
   // Regenerate caption mutation
   const regenMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (revisionNote?: string) => {
       const res = await apiRequest(
         "POST",
-        `/api/carousels/${carousel.id}/regenerate-caption`
+        `/api/carousels/${carousel.id}/regenerate-caption`,
+        revisionNote ? { revisionNote } : undefined
       );
       return res.json();
     },
@@ -350,14 +351,32 @@ function ContentReviewPanel({
       setCaptionText(data.caption || "");
       setHashtagsText(data.hashtags || "");
       queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
-      toast({ title: "New caption generated" });
+      toast({ title: "Caption baru berhasil dibuat" });
     },
     onError: (err: Error) => {
       toast({
-        title: "Failed to regenerate",
+        title: "Gagal regenerate caption",
         description: err.message,
         variant: "destructive",
       });
+    },
+  });
+
+  // Delete carousel mutation (so user can regenerate from scratch)
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("DELETE", `/api/carousels/${carousel.id}`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/source-images"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      onClose();
+      toast({ title: "Carousel dihapus", description: "Klik gambar lagi untuk buat ulang." });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Gagal hapus", description: err.message, variant: "destructive" });
     },
   });
 
@@ -529,14 +548,14 @@ function ContentReviewPanel({
                   variant="ghost"
                   size="sm"
                   className="h-7 text-xs px-2"
-                  onClick={() => regenMutation.mutate()}
+                  onClick={() => regenMutation.mutate(undefined)}
                   disabled={regenMutation.isPending}
                   data-testid="regen-caption-btn"
                 >
                   <RotateCcw
                     className={`w-3 h-3 mr-1 ${regenMutation.isPending ? "animate-spin" : ""}`}
                   />
-                  {regenMutation.isPending ? "Generating..." : "Regenerate"}
+                  {regenMutation.isPending ? "Generating..." : "Buat Ulang Caption"}
                 </Button>
               </>
             ) : (
@@ -601,20 +620,44 @@ function ContentReviewPanel({
         )}
       </div>
 
-      {/* Review note if rejected */}
+      {/* Review note if rejected — with Regenerate Caption button using note as context */}
       {carousel.status === "rejected" && carousel.reviewNote && (
-        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+        <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 space-y-2">
           <p className="text-xs font-medium text-red-700 dark:text-red-400">
-            Revision note:
+            Catatan revisi:
           </p>
-          <p className="text-sm text-red-600 dark:text-red-300 mt-0.5">
+          <p className="text-sm text-red-600 dark:text-red-300">
             {carousel.reviewNote}
           </p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 text-xs px-2 border-red-300 text-red-600 hover:bg-red-50"
+            onClick={() => regenMutation.mutate(carousel.reviewNote || undefined)}
+            disabled={regenMutation.isPending}
+            data-testid="regen-with-note-btn"
+          >
+            <RotateCcw className={`w-3 h-3 mr-1 ${regenMutation.isPending ? "animate-spin" : ""}`} />
+            {regenMutation.isPending ? "Generating..." : "Buat Ulang Caption dengan Catatan Ini"}
+          </Button>
         </div>
       )}
 
       {/* Action buttons */}
       <div className="flex gap-2 pt-1 flex-wrap">
+        {/* Delete & Redo — always available */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-8 text-xs px-3 text-muted-foreground hover:text-red-500 hover:bg-red-50"
+          onClick={() => deleteMutation.mutate()}
+          disabled={deleteMutation.isPending}
+          data-testid="delete-carousel-btn"
+        >
+          <X className="w-3.5 h-3.5 mr-1.5" />
+          {deleteMutation.isPending ? "Menghapus..." : "Hapus & Buat Ulang"}
+        </Button>
+
         {/* Download button — always visible once slides exist */}
         {slides.length > 0 && (
           <Button
