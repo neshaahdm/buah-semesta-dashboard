@@ -2,6 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { storage } from "./storage";
+import { listSourceImages, hasDriveCredentials } from "./drive";
 
 const app = express();
 const httpServer = createServer(app);
@@ -83,6 +85,38 @@ app.use((req, res, next) => {
   } else {
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
+  }
+
+  // Auto-scan Drive on startup if DB is empty (handles fresh Railway deploys)
+  try {
+    const stats = storage.getStats();
+    if (stats.totalImages === 0 && hasDriveCredentials()) {
+      log("DB is empty — auto-scanning Drive for images...", "startup");
+      const driveFiles = await listSourceImages();
+      let inserted = 0;
+      for (const file of driveFiles) {
+        const existing = storage.getSourceImageByDriveId(file.id);
+        if (!existing) {
+          const thumbnailUrl = `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
+          storage.createSourceImage({
+            driveFileId: file.id,
+            fileName: file.name,
+            mimeType: file.mimeType,
+            thumbnailUrl,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+          });
+          inserted++;
+        }
+      }
+      log(`Auto-scan complete: inserted ${inserted} images from Drive`, "startup");
+    } else if (stats.totalImages > 0) {
+      log(`DB already has ${stats.totalImages} images, skipping auto-scan`, "startup");
+    } else {
+      log("No Drive credentials, skipping auto-scan", "startup");
+    }
+  } catch (err) {
+    log(`Auto-scan failed (non-fatal): ${err}`, "startup");
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
