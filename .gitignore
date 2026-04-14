@@ -1,5 +1,4 @@
 node_modules/
-dist/
 output/carousels/
 data.db
 *.db-shm
