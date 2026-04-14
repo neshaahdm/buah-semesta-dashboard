@@ -10,8 +10,34 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { eq, sql } from "drizzle-orm";
 
-const sqlite = new Database("data.db");
+const DB_PATH = process.env.DB_PATH || "data.db";
+const sqlite = new Database(DB_PATH);
 sqlite.pragma("journal_mode = WAL");
+
+// Auto-create tables if they don't exist (needed on fresh Railway deploys)
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS source_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    drive_file_id TEXT NOT NULL UNIQUE,
+    file_name TEXT NOT NULL,
+    mime_type TEXT DEFAULT 'image/jpeg',
+    thumbnail_url TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TEXT DEFAULT ''
+  );
+  CREATE TABLE IF NOT EXISTS carousels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source_image_id INTEGER NOT NULL,
+    slide_count INTEGER DEFAULT 0,
+    slide_paths TEXT DEFAULT '[]',
+    caption TEXT DEFAULT '',
+    hashtags TEXT DEFAULT '',
+    status TEXT DEFAULT 'draft',
+    review_note TEXT DEFAULT '',
+    created_at TEXT DEFAULT '',
+    approved_at TEXT DEFAULT ''
+  );
+`);
 
 export const db = drizzle(sqlite);
 
