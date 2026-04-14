@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateCarousel } from "./carousel";
 import { generateCaption } from "./caption";
+import { listSourceImages, uploadCarouselToOutput, hasDriveCredentials } from "./drive";
 import express from "express";
 import path from "path";
 import fs from "fs";
@@ -206,7 +207,7 @@ export async function registerRoutes(
   });
 
   // POST /api/carousels/:id/upload — Upload approved carousel to Drive
-  app.post("/api/carousels/:id/upload", (req, res) => {
+  app.post("/api/carousels/:id/upload", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       const carousel = storage.getCarousel(id);
@@ -214,14 +215,27 @@ export async function registerRoutes(
         res.status(404).json({ error: "Carousel not found" });
         return;
       }
-
       if (carousel.status !== "approved") {
         res.status(400).json({ error: "Carousel must be approved before uploading" });
         return;
       }
 
-      storage.updateCarouselStatus(id, "uploaded");
-      res.json({ ...carousel, status: "uploaded" });
+      const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
+
+      // Get fruit name from source image
+      const sourceImage = storage.getSourceImage(carousel.sourceImageId);
+      const fruitName = sourceImage?.fileName?.replace(/\.[^.]+$/, "") || `carousel-${id}`;
+
+      if (hasDriveCredentials() && slides.length > 0) {
+        // Upload to Google Drive
+        const driveUrl = await uploadCarouselToOutput(fruitName, slides);
+        storage.updateCarouselStatus(id, "uploaded");
+        res.json({ ...carousel, status: "uploaded", driveUrl });
+      } else {
+        // No Drive credentials — just mark as uploaded
+        storage.updateCarouselStatus(id, "uploaded");
+        res.json({ ...carousel, status: "uploaded", driveUrl: null });
+      }
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
@@ -341,13 +355,40 @@ export async function registerRoutes(
     }
   });
 
-  // POST /api/scan — Trigger manual scan
-  app.post("/api/scan", (_req, res) => {
+  // POST /api/scan — Scan Google Drive for new images
+  app.post("/api/scan", async (_req, res) => {
     try {
+      if (!hasDriveCredentials()) {
+        const stats = storage.getStats();
+        return res.json({ message: "Scan complete (no Drive credentials)", totalImages: stats.totalImages, newImages: 0 });
+      }
+
+      const driveFiles = await listSourceImages();
+      let newImages = 0;
+
+      for (const file of driveFiles) {
+        const existing = storage.getSourceImageByDriveId(file.id);
+        if (!existing) {
+          // Use Drive thumbnail URL
+          const thumbnailUrl = `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
+          storage.createSourceImage({
+            driveFileId: file.id,
+            fileName: file.name,
+            mimeType: file.mimeType,
+            thumbnailUrl,
+            status: "pending",
+            createdAt: new Date().toISOString(),
+          });
+          newImages++;
+        }
+      }
+
       const stats = storage.getStats();
       res.json({
         message: "Scan complete",
         totalImages: stats.totalImages,
+        newImages,
+        driveFilesFound: driveFiles.length,
       });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
