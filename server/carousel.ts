@@ -6,17 +6,22 @@ import https from "https";
 import http from "http";
 import Anthropic from "@anthropic-ai/sdk";
 
-const OUTPUT_BASE = path.resolve(
-  "./output/carousels"
-);
+const OUTPUT_BASE = path.resolve(process.cwd(), "output/carousels");
 const SLIDE_SIZE = 1080;
 
-// Register Lato fonts
-registerFont("./fonts/Lato-Black.ttf",    { family: "Lato", weight: "900" });
-registerFont("./fonts/Lato-Bold.ttf",     { family: "Lato", weight: "700" });
-registerFont("./fonts/Lato-Semibold.ttf", { family: "Lato", weight: "600" });
-registerFont("./fonts/Lato-Regular.ttf",  { family: "Lato", weight: "400" });
-registerFont("./fonts/Lato-Light.ttf",    { family: "Lato", weight: "300" });
+// Register Lato fonts — wrapped in try-catch so a missing fontconfig
+// or font file doesn't crash the entire process on Railway
+try {
+  const fontsDir = path.resolve(process.cwd(), "fonts");
+  registerFont(path.join(fontsDir, "Lato-Black.ttf"),    { family: "Lato", weight: "900" });
+  registerFont(path.join(fontsDir, "Lato-Bold.ttf"),     { family: "Lato", weight: "700" });
+  registerFont(path.join(fontsDir, "Lato-Semibold.ttf"), { family: "Lato", weight: "600" });
+  registerFont(path.join(fontsDir, "Lato-Regular.ttf"),  { family: "Lato", weight: "400" });
+  registerFont(path.join(fontsDir, "Lato-Light.ttf"),    { family: "Lato", weight: "300" });
+  console.log("[carousel] Lato fonts registered from", fontsDir);
+} catch (e) {
+  console.warn("[carousel] Font registration failed — falling back to system fonts:", e);
+}
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 // Panel colors (solid, used in bottom 1/3 strip)

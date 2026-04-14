@@ -1,5 +1,5 @@
 [phases.setup]
-nixPkgs = ["nodejs_20", "python3", "pkg-config", "cairo", "pango", "libpng", "libjpeg", "giflib", "librsvg", "pixman"]
+nixPkgs = ["nodejs_20", "python3", "pkg-config", "cairo", "pango", "libpng", "libjpeg", "giflib", "librsvg", "pixman", "fontconfig", "freetype"]
 
 [phases.install]
 cmds = ["npm install"]
