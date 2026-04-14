@@ -13,6 +13,31 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // ─── Auth ──────────────────────────────────────────────────────────
+  const APP_PASSWORD = process.env.APP_PASSWORD || "Semestacontent2026";
+
+  app.post("/api/login", (req, res) => {
+    const { password } = req.body;
+    if (password === APP_PASSWORD) {
+      res.json({ success: true, token: Buffer.from(APP_PASSWORD).toString("base64") });
+    } else {
+      res.status(401).json({ success: false, error: "Password salah" });
+    }
+  });
+
+  app.get("/api/verify", (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) return res.status(401).json({ valid: false });
+    const token = authHeader.replace("Bearer ", "");
+    try {
+      const decoded = Buffer.from(token, "base64").toString();
+      if (decoded === APP_PASSWORD) {
+        return res.json({ valid: true });
+      }
+    } catch {}
+    return res.status(401).json({ valid: false });
+  });
+
   // Serve carousel slide images statically
   app.use(
     "/api/slides",

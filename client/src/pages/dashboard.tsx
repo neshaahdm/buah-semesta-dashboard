@@ -36,6 +36,7 @@ import {
   Save,
   X,
   Download,
+  LogOut,
 } from "lucide-react";
 import { useState } from "react";
 import type { SourceImage, Carousel } from "@shared/schema";
@@ -862,6 +863,19 @@ export default function Dashboard() {
               ) : (
                 <Moon className="w-4 h-4" />
               )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                sessionStorage.removeItem("auth_token");
+                window.location.reload();
+              }}
+              data-testid="button-logout"
+              className="h-8 w-8 p-0 text-muted-foreground hover:text-red-500"
+              title="Keluar"
+            >
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>

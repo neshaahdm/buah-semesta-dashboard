@@ -1,12 +1,14 @@
+import { useState, useEffect } from "react";
 import { Switch, Route, Router } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
-import { queryClient } from "./lib/queryClient";
+import { queryClient, apiRequest } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeProvider } from "@/lib/theme";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
+import LoginPage from "@/pages/login";
 
 function AppRouter() {
   return (
@@ -17,15 +19,61 @@ function AppRouter() {
   );
 }
 
+function AuthGate({ children }: { children: React.ReactNode }) {
+  const [authed, setAuthed] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("auth_token");
+    if (!token) {
+      setAuthed(false);
+      return;
+    }
+    // Verify token with backend
+    apiRequest("GET", "/api/verify", undefined, {
+      Authorization: `Bearer ${token}`,
+    })
+      .then((res) => {
+        if (res.ok) setAuthed(true);
+        else {
+          sessionStorage.removeItem("auth_token");
+          setAuthed(false);
+        }
+      })
+      .catch(() => {
+        sessionStorage.removeItem("auth_token");
+        setAuthed(false);
+      });
+  }, []);
+
+  if (authed === null) {
+    // Loading state
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 via-white to-emerald-50">
+        <div className="animate-pulse text-green-600 text-lg font-medium">
+          Memuat...
+        </div>
+      </div>
+    );
+  }
+
+  if (!authed) {
+    return <LoginPage onLogin={() => setAuthed(true)} />;
+  }
+
+  return <>{children}</>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <TooltipProvider>
           <Toaster />
-          <Router hook={useHashLocation}>
-            <AppRouter />
-          </Router>
+          <AuthGate>
+            <Router hook={useHashLocation}>
+              <AppRouter />
+            </Router>
+          </AuthGate>
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
