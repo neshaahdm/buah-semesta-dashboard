@@ -15,7 +15,7 @@ export async function registerRoutes(
   // Serve carousel slide images statically
   app.use(
     "/api/slides",
-    express.static("/home/user/workspace/carousel-dashboard/output/carousels")
+    express.static("./output/carousels")
   );
 
   // GET /api/source-images — List all source images from DB
@@ -169,7 +169,7 @@ export async function registerRoutes(
         if (slides.length > 0) {
           const dirName = slides[0].split("/")[0];
           const captionDir = path.join(
-            "/home/user/workspace/carousel-dashboard/output/carousels",
+            "./output/carousels",
             dirName
           );
           const captionContent = `${updated!.caption}\n\n${updated!.hashtags}`;
@@ -245,7 +245,7 @@ export async function registerRoutes(
 
       const dirName = slides[0].split("/")[0];
       const carouselDir = path.join(
-        "/home/user/workspace/carousel-dashboard/output/carousels",
+        "./output/carousels",
         dirName
       );
 
@@ -268,7 +268,7 @@ export async function registerRoutes(
       // Add all slides
       for (const slidePath of slides) {
         const slideFile = path.join(
-          "/home/user/workspace/carousel-dashboard/output/carousels",
+          "./output/carousels",
           slidePath
         );
         if (fs.existsSync(slideFile)) {

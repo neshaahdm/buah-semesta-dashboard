@@ -7,16 +7,16 @@ import http from "http";
 import Anthropic from "@anthropic-ai/sdk";
 
 const OUTPUT_BASE = path.resolve(
-  "/home/user/workspace/carousel-dashboard/output/carousels"
+  "./output/carousels"
 );
 const SLIDE_SIZE = 1080;
 
 // Register Lato fonts
-registerFont("/usr/share/fonts/truetype/lato/Lato-Black.ttf",    { family: "Lato", weight: "900" });
-registerFont("/usr/share/fonts/truetype/lato/Lato-Bold.ttf",     { family: "Lato", weight: "700" });
-registerFont("/usr/share/fonts/truetype/lato/Lato-Semibold.ttf", { family: "Lato", weight: "600" });
-registerFont("/usr/share/fonts/truetype/lato/Lato-Regular.ttf",  { family: "Lato", weight: "400" });
-registerFont("/usr/share/fonts/truetype/lato/Lato-Light.ttf",    { family: "Lato", weight: "300" });
+registerFont("./fonts/Lato-Black.ttf",    { family: "Lato", weight: "900" });
+registerFont("./fonts/Lato-Bold.ttf",     { family: "Lato", weight: "700" });
+registerFont("./fonts/Lato-Semibold.ttf", { family: "Lato", weight: "600" });
+registerFont("./fonts/Lato-Regular.ttf",  { family: "Lato", weight: "400" });
+registerFont("./fonts/Lato-Light.ttf",    { family: "Lato", weight: "300" });
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
 // Panel colors (solid, used in bottom 1/3 strip)
