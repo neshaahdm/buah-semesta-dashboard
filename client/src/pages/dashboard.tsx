@@ -695,52 +695,11 @@ function ContentReviewPanel({
       )}
 
       {/* Action buttons */}
-      <div className="flex gap-2 pt-1 flex-wrap">
-        {/* Delete options */}
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 text-xs px-3 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
-          onClick={() => deleteMutation.mutate()}
-          disabled={deleteMutation.isPending}
-          data-testid="delete-carousel-btn"
-        >
-          <X className="w-3.5 h-3.5 mr-1.5" />
-          {deleteMutation.isPending ? "Menghapus..." : "Hapus Carousel"}
-        </Button>
+      <div className="space-y-2 pt-1">
 
-        {/* Download individual slides — works on iPhone */}
-        {slides.length > 0 && (
-          <div className="flex flex-wrap gap-1.5">
-            {slides.map((_, idx) => (
-              <Button
-                key={idx}
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs px-3"
-                onClick={() => handleDownloadSlide(idx)}
-                data-testid={`download-slide-${idx + 1}`}
-              >
-                <Download className="w-3 h-3 mr-1" />
-                Slide {idx + 1}
-              </Button>
-            ))}
-            {carousel.caption && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-8 text-xs px-3"
-                onClick={handleDownloadCaption}
-                data-testid="download-caption-btn"
-              >
-                <FileText className="w-3 h-3 mr-1" />
-                Caption
-              </Button>
-            )}
-          </div>
-        )}
+        {/* Row 1: Approve / Revision */}
         {canApprove && (
-          <>
+          <div className="flex gap-2">
             <Button
               onClick={() => approveMutation.mutate()}
               disabled={approveMutation.isPending}
@@ -764,7 +723,7 @@ function ContentReviewPanel({
               <ThumbsDown className="w-4 h-4 mr-2" />
               Request Revision
             </Button>
-          </>
+          </div>
         )}
 
         {/* Revision note box — appears below buttons when Request Revision clicked */}
@@ -823,6 +782,48 @@ function ContentReviewPanel({
             <CheckCircle2 className="w-4 h-4 mr-2" />
             Uploaded to Drive
           </Button>
+        )}
+
+        {/* Row: Download slides + Delete */}
+        {slides.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-border/40">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 text-xs px-3 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
+              onClick={() => deleteMutation.mutate()}
+              disabled={deleteMutation.isPending}
+              data-testid="delete-carousel-btn"
+            >
+              <X className="w-3 h-3 mr-1" />
+              {deleteMutation.isPending ? "Menghapus..." : "Hapus"}
+            </Button>
+            {slides.map((_, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs px-3"
+                onClick={() => handleDownloadSlide(idx)}
+                data-testid={`download-slide-${idx + 1}`}
+              >
+                <Download className="w-3 h-3 mr-1" />
+                Slide {idx + 1}
+              </Button>
+            ))}
+            {carousel.caption && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs px-3"
+                onClick={handleDownloadCaption}
+                data-testid="download-caption-btn"
+              >
+                <FileText className="w-3 h-3 mr-1" />
+                Caption
+              </Button>
+            )}
+          </div>
         )}
       </div>
     </div>
