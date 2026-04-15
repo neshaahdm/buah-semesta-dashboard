@@ -391,7 +391,7 @@ function ContentReviewPanel({
     },
   });
 
-  // Approve mutation
+  // Approve mutation — auto-uploads to Drive on success
   const approveMutation = useMutation({
     mutationFn: async () => {
       const res = await apiRequest(
@@ -400,10 +400,25 @@ function ContentReviewPanel({
       );
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (data: Carousel & { driveUrl?: string }) => {
       queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
-      toast({ title: "Content approved", description: "Carousel is ready for upload." });
+      if (data.status === "uploaded") {
+        toast({
+          title: "✅ Disetujui & sudah di-upload ke Drive!",
+          description: data.driveUrl
+            ? "Cek folder Post Semesta di Google Drive."
+            : "Carousel tersimpan di folder Post Semesta.",
+        });
+      } else {
+        toast({
+          title: "Disetujui",
+          description: "Upload ke Drive gagal, coba manual.",
+        });
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: "Gagal approve", description: err.message, variant: "destructive" });
     },
   });
 
@@ -695,7 +710,7 @@ function ContentReviewPanel({
               }}
             >
               <ThumbsUp className="w-4 h-4 mr-2" />
-              {approveMutation.isPending ? "Approving..." : "Approve"}
+              {approveMutation.isPending ? "Menyetujui & Upload..." : "Setuju & Upload ke Drive"}
             </Button>
             <Button
               variant="outline"

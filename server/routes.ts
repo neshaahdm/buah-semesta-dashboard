@@ -211,24 +211,36 @@ export async function registerRoutes(
       }
 
       storage.approveCarousel(id);
-      const updated = storage.getCarousel(id);
 
       // Save caption file alongside slides
+      const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
       try {
-        const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
         if (slides.length > 0) {
           const dirName = slides[0].split("/")[0];
-          const captionDir = path.join(
-            "./output/carousels",
-            dirName
-          );
-          const captionContent = `${updated!.caption}\n\n${updated!.hashtags}`;
+          const captionDir = path.join("./output/carousels", dirName);
+          const captionContent = `${carousel.caption}\n\n${carousel.hashtags}`;
           fs.writeFileSync(path.join(captionDir, "caption.txt"), captionContent, "utf8");
         }
       } catch (e) {
         console.error("Failed to save caption file:", e);
       }
 
+      // Auto-upload to Drive immediately after approval
+      if (hasDriveCredentials() && slides.length > 0) {
+        try {
+          const sourceImage = storage.getSourceImage(carousel.sourceImageId);
+          const fruitName = sourceImage?.fileName?.replace(/\.[^.]+$/, "") || `carousel-${id}`;
+          const driveUrl = await uploadCarouselToOutput(fruitName, slides);
+          storage.updateCarouselStatus(id, "uploaded");
+          const uploaded = storage.getCarousel(id);
+          return res.json({ ...uploaded, driveUrl });
+        } catch (uploadErr) {
+          console.error("Auto-upload to Drive failed:", uploadErr);
+          // Still return approved even if upload fails — user can retry manually
+        }
+      }
+
+      const updated = storage.getCarousel(id);
       res.json(updated);
     } catch (err: any) {
       res.status(500).json({ error: err.message });
