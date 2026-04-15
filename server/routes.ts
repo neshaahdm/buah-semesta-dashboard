@@ -233,15 +233,22 @@ export async function registerRoutes(
       // Auto-upload to Drive immediately after approval
       if (hasDriveCredentials() && slides.length > 0) {
         try {
+          // Debug: check if slide files actually exist on disk
+          for (const sp of slides) {
+            const fullPath = path.join(CAROUSEL_OUTPUT, sp);
+            const exists = fs.existsSync(fullPath);
+            console.log(`[upload] Checking slide: ${fullPath} — exists: ${exists}`);
+          }
           const sourceImage = storage.getSourceImage(carousel.sourceImageId);
           const fruitName = sourceImage?.fileName?.replace(/\.[^.]+$/, "") || `carousel-${id}`;
           const driveUrl = await uploadCarouselToOutput(fruitName, slides);
           storage.updateCarouselStatus(id, "uploaded");
           const uploaded = storage.getCarousel(id);
           return res.json({ ...uploaded, driveUrl });
-        } catch (uploadErr) {
-          console.error("Auto-upload to Drive failed:", uploadErr);
-          // Still return approved even if upload fails — user can retry manually
+        } catch (uploadErr: any) {
+          console.error("Auto-upload to Drive failed:", uploadErr?.message || uploadErr);
+          const updated = storage.getCarousel(id);
+          return res.json({ ...updated, uploadError: uploadErr?.message || "Upload failed" });
         }
       }
 
