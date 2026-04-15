@@ -66,6 +66,9 @@ export async function downloadDriveFile(fileId: string): Promise<Buffer> {
   return Buffer.from(res.data as ArrayBuffer);
 }
 
+// The owner email to transfer files to after upload (service accounts have no quota on personal Drive)
+const DRIVE_OWNER_EMAIL = "nesha.rea@gmail.com";
+
 // Upload carousel slides (as a new folder) to the output folder
 export async function uploadCarouselToOutput(
   fruitName: string,
@@ -74,23 +77,29 @@ export async function uploadCarouselToOutput(
   const auth = getAuth();
   const drive = google.drive({ version: "v3", auth });
 
+  const OUTPUT_BASE = process.env.DB_PATH
+    ? path.join(path.dirname(process.env.DB_PATH), "carousels")
+    : path.resolve(process.cwd(), "output/carousels");
+
   // Create a subfolder in Post semesta
+  const folderName = `Carousel - ${fruitName} - ${new Date().toISOString().slice(0, 10)}`;
   const folderMeta = await drive.files.create({
     requestBody: {
-      name: `Carousel - ${fruitName} - ${new Date().toISOString().slice(0, 10)}`,
+      name: folderName,
       mimeType: "application/vnd.google-apps.folder",
       parents: [OUTPUT_FOLDER_ID],
     },
     fields: "id",
-  });
+    // Allow writing to folders owned by others (nesha.rea@gmail.com shared the folder with us)
+    supportsAllDrives: true,
+  } as any);
   const folderId = folderMeta.data.id!;
 
-  // Upload each slide — use persistent volume path if available
-  const OUTPUT_BASE = process.env.DB_PATH
-    ? path.join(path.dirname(process.env.DB_PATH), "carousels")
-    : path.resolve(process.cwd(), "output/carousels");
+  const uploadedFileIds: string[] = [];
+
+  // Upload each slide
   for (let i = 0; i < slidePaths.length; i++) {
-    const slidePath = slidePaths[i]; // e.g. "driveFileId/slide_1.jpg"
+    const slidePath = slidePaths[i];
     const fullPath = path.join(OUTPUT_BASE, slidePath);
     const ext = path.extname(slidePath).toLowerCase();
     const mimeType = ext === ".png" ? "image/png" : "image/jpeg";
@@ -101,27 +110,46 @@ export async function uploadCarouselToOutput(
       continue;
     }
 
-    await drive.files.create({
-      requestBody: {
-        name: fileName,
-        parents: [folderId],
-      },
-      media: {
-        mimeType,
-        body: fs.createReadStream(fullPath),
-      },
+    const fileRes = await drive.files.create({
+      requestBody: { name: fileName, parents: [folderId] },
+      media: { mimeType, body: fs.createReadStream(fullPath) },
       fields: "id",
-    });
+      supportsAllDrives: true,
+    } as any);
+    if (fileRes.data.id) uploadedFileIds.push(fileRes.data.id);
   }
 
   // Also upload caption.txt if it exists
   const captionFile = path.join(OUTPUT_BASE, slidePaths[0].split("/")[0], "caption.txt");
   if (fs.existsSync(captionFile)) {
-    await drive.files.create({
+    const capRes = await drive.files.create({
       requestBody: { name: "caption.txt", parents: [folderId] },
       media: { mimeType: "text/plain", body: fs.createReadStream(captionFile) },
       fields: "id",
-    });
+      supportsAllDrives: true,
+    } as any);
+    if (capRes.data.id) uploadedFileIds.push(capRes.data.id);
+  }
+
+  // Transfer ownership of all uploaded files + the folder to the Drive owner
+  // (Service accounts can't keep files — they have no quota on personal Drive)
+  const allIds = [folderId, ...uploadedFileIds];
+  for (const fileId of allIds) {
+    try {
+      await drive.permissions.create({
+        fileId,
+        requestBody: {
+          role: "owner",
+          type: "user",
+          emailAddress: DRIVE_OWNER_EMAIL,
+        },
+        transferOwnership: true,
+        supportsAllDrives: true,
+      } as any);
+    } catch (e: any) {
+      // transferOwnership may fail on shared folders but files will still be accessible
+      console.warn(`[drive] Could not transfer ownership of ${fileId}:`, e?.message);
+    }
   }
 
   return `https://drive.google.com/drive/folders/${folderId}`;
