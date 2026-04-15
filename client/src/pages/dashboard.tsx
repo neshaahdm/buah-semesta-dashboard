@@ -206,10 +206,12 @@ function CarouselPreview({
   carousel,
   sourceImage,
   onClick,
+  onDelete,
 }: {
   carousel: Carousel;
   sourceImage?: SourceImage;
   onClick: () => void;
+  onDelete: () => void;
 }) {
   const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
   const [current, setCurrent] = useState(0);
@@ -217,7 +219,7 @@ function CarouselPreview({
 
   return (
     <Card
-      className="border border-card-border overflow-hidden cursor-pointer hover:border-primary/40 transition-all"
+      className="group border border-card-border overflow-hidden cursor-pointer hover:border-primary/40 transition-all"
       data-testid={`carousel-${carousel.id}`}
       onClick={onClick}
     >
@@ -279,6 +281,15 @@ function CarouselPreview({
             </Badge>
           </div>
         )}
+        {/* Quick delete button — top left, stops propagation so it doesn't open the panel */}
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(); }}
+          className="absolute top-2 left-2 w-6 h-6 rounded-full bg-black/50 text-white opacity-0 group-hover:opacity-100 flex items-center justify-center hover:bg-red-500 transition-all"
+          title="Hapus carousel"
+          data-testid={`delete-carousel-quick-${carousel.id}`}
+        >
+          <X className="w-3 h-3" />
+        </button>
       </div>
       <CardContent className="p-3">
         <p className="text-xs font-medium truncate">
@@ -645,17 +656,17 @@ function ContentReviewPanel({
 
       {/* Action buttons */}
       <div className="flex gap-2 pt-1 flex-wrap">
-        {/* Delete & Redo — always available */}
+        {/* Delete options */}
         <Button
-          variant="ghost"
+          variant="outline"
           size="sm"
-          className="h-8 text-xs px-3 text-muted-foreground hover:text-red-500 hover:bg-red-50"
+          className="h-8 text-xs px-3 border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300"
           onClick={() => deleteMutation.mutate()}
           disabled={deleteMutation.isPending}
           data-testid="delete-carousel-btn"
         >
           <X className="w-3.5 h-3.5 mr-1.5" />
-          {deleteMutation.isPending ? "Menghapus..." : "Hapus & Buat Ulang"}
+          {deleteMutation.isPending ? "Menghapus..." : "Hapus Carousel"}
         </Button>
 
         {/* Download button — always visible once slides exist */}
@@ -1062,6 +1073,12 @@ export default function Dashboard() {
                     carousel={c}
                     sourceImage={imageMap.get(c.sourceImageId)}
                     onClick={() => setReviewCarousel(c)}
+                    onDelete={async () => {
+                      await apiRequest("DELETE", `/api/carousels/${c.id}`);
+                      queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
+                      queryClient.invalidateQueries({ queryKey: ["/api/source-images"] });
+                      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+                    }}
                   />
                 ))}
               </div>
