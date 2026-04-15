@@ -86,18 +86,38 @@ export async function uploadCarouselToOutput(
   const folderId = folderMeta.data.id!;
 
   // Upload each slide
+  const OUTPUT_BASE = path.resolve(process.cwd(), "output/carousels");
   for (let i = 0; i < slidePaths.length; i++) {
-    const slidePath = slidePaths[i];
-    const fileName = `Slide ${i + 1} - ${fruitName}.png`;
+    const slidePath = slidePaths[i]; // e.g. "driveFileId/slide_1.jpg"
+    const fullPath = path.join(OUTPUT_BASE, slidePath);
+    const ext = path.extname(slidePath).toLowerCase();
+    const mimeType = ext === ".png" ? "image/png" : "image/jpeg";
+    const fileName = `Slide ${i + 1} - ${fruitName}${ext}`;
+
+    if (!fs.existsSync(fullPath)) {
+      console.error(`[drive] Slide file not found: ${fullPath}`);
+      continue;
+    }
+
     await drive.files.create({
       requestBody: {
         name: fileName,
         parents: [folderId],
       },
       media: {
-        mimeType: "image/png",
-        body: fs.createReadStream(slidePath),
+        mimeType,
+        body: fs.createReadStream(fullPath),
       },
+      fields: "id",
+    });
+  }
+
+  // Also upload caption.txt if it exists
+  const captionFile = path.join(OUTPUT_BASE, slidePaths[0].split("/")[0], "caption.txt");
+  if (fs.existsSync(captionFile)) {
+    await drive.files.create({
+      requestBody: { name: "caption.txt", parents: [folderId] },
+      media: { mimeType: "text/plain", body: fs.createReadStream(captionFile) },
       fields: "id",
     });
   }
