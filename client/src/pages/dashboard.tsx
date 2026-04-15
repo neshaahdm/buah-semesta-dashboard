@@ -462,25 +462,39 @@ function ContentReviewPanel({
     carousel.status === "pending_review" || carousel.status === "rejected";
   const canUpload = carousel.status === "approved";
 
-  const handleDownload = async () => {
+  const handleDownloadSlide = async (slideIndex: number) => {
     try {
-      // Fetch the ZIP as a binary blob so it works through any proxy
-      const url = `${API_BASE}/api/carousels/${carousel.id}/download`;
+      const slidePath = slides[slideIndex];
+      const url = `${API_BASE}/api/slides/${slidePath}`;
       const resp = await fetch(url);
       if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
       const blob = await resp.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = `carousel_${carousel.id}.zip`;
+      a.download = `slide_${slideIndex + 1}.jpg`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
-      toast({ title: "Download dimulai", description: "File ZIP sedang diunduh." });
+      toast({ title: `Slide ${slideIndex + 1} diunduh`, description: "Gambar berhasil diunduh." });
     } catch (err: any) {
       toast({ title: "Download gagal", description: err.message, variant: "destructive" });
     }
+  };
+
+  const handleDownloadCaption = () => {
+    const content = `${carousel.caption}\n\n${carousel.hashtags}`;
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = blobUrl;
+    a.download = "caption.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    toast({ title: "Caption diunduh", description: "File caption.txt berhasil diunduh." });
   };
 
   return (
@@ -695,18 +709,35 @@ function ContentReviewPanel({
           {deleteMutation.isPending ? "Menghapus..." : "Hapus Carousel"}
         </Button>
 
-        {/* Download button — always visible once slides exist */}
+        {/* Download individual slides — works on iPhone */}
         {slides.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 text-xs px-3"
-            onClick={handleDownload}
-            data-testid="download-btn"
-          >
-            <Download className="w-3.5 h-3.5 mr-1.5" />
-            Download ZIP
-          </Button>
+          <div className="flex flex-wrap gap-1.5">
+            {slides.map((_, idx) => (
+              <Button
+                key={idx}
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs px-3"
+                onClick={() => handleDownloadSlide(idx)}
+                data-testid={`download-slide-${idx + 1}`}
+              >
+                <Download className="w-3 h-3 mr-1" />
+                Slide {idx + 1}
+              </Button>
+            ))}
+            {carousel.caption && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs px-3"
+                onClick={handleDownloadCaption}
+                data-testid="download-caption-btn"
+              >
+                <FileText className="w-3 h-3 mr-1" />
+                Caption
+              </Button>
+            )}
+          </div>
         )}
         {canApprove && (
           <>
