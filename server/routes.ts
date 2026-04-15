@@ -422,7 +422,7 @@ export async function registerRoutes(
     }
   });
 
-  // POST /api/scan — Scan Google Drive for new images
+  // POST /api/scan — Scan Google Drive for new images, remove deleted ones
   app.post("/api/scan", async (_req, res) => {
     try {
       if (!hasDriveCredentials()) {
@@ -431,12 +431,23 @@ export async function registerRoutes(
       }
 
       const driveFiles = await listSourceImages();
-      let newImages = 0;
+      const driveFileIds = new Set(driveFiles.map((f) => f.id));
 
+      // 1. Remove DB records for files deleted from Drive
+      const allDbImages = storage.getAllSourceImages();
+      let removedImages = 0;
+      for (const dbImage of allDbImages) {
+        if (!driveFileIds.has(dbImage.driveFileId)) {
+          storage.deleteSourceImage(dbImage.id);
+          removedImages++;
+        }
+      }
+
+      // 2. Add new files from Drive not yet in DB
+      let newImages = 0;
       for (const file of driveFiles) {
         const existing = storage.getSourceImageByDriveId(file.id);
         if (!existing) {
-          // Use Drive thumbnail URL
           const thumbnailUrl = `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
           storage.createSourceImage({
             driveFileId: file.id,
@@ -455,6 +466,7 @@ export async function registerRoutes(
         message: "Scan complete",
         totalImages: stats.totalImages,
         newImages,
+        removedImages,
         driveFilesFound: driveFiles.length,
       });
     } catch (err: any) {

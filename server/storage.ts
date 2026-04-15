@@ -60,6 +60,7 @@ export interface IStorage {
   approveCarousel(id: number): void;
 
   deleteCarousel(id: number): void;
+  deleteSourceImage(id: number): void;
 
   // Stats
   getStats(): {
@@ -150,6 +151,15 @@ export class DatabaseStorage implements IStorage {
 
   deleteCarousel(id: number): void {
     db.delete(carousels).where(eq(carousels.id, id)).run();
+  }
+
+  deleteSourceImage(id: number): void {
+    // Delete associated carousel first
+    const carousel = db.select().from(carousels).where(eq(carousels.sourceImageId, id)).get();
+    if (carousel) {
+      db.delete(carousels).where(eq(carousels.id, carousel.id)).run();
+    }
+    db.delete(sourceImages).where(eq(sourceImages.id, id)).run();
   }
 
   getStats() {
