@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/lib/theme";
 import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import LoginPage from "@/pages/login";
+import { getAuthToken, clearAuthToken } from "@/lib/auth-token";
 
 function AppRouter() {
   return (
@@ -23,7 +24,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   const [authed, setAuthed] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const token = sessionStorage.getItem("auth_token");
+    const token = getAuthToken();
     if (!token) {
       setAuthed(false);
       return;
@@ -35,12 +36,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
       .then((res) => {
         if (res.ok) setAuthed(true);
         else {
-          sessionStorage.removeItem("auth_token");
+          clearAuthToken();
           setAuthed(false);
         }
       })
       .catch(() => {
-        sessionStorage.removeItem("auth_token");
+        clearAuthToken();
         setAuthed(false);
       });
   }, []);

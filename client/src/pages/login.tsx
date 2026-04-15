@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Lock, Leaf, Eye, EyeOff } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { setAuthToken } from "@/lib/auth-token";
 
 interface LoginPageProps {
   onLogin: () => void;
@@ -25,7 +26,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       const res = await apiRequest("POST", "/api/login", { password });
       const data = await res.json();
       if (data.success) {
-        sessionStorage.setItem("auth_token", data.token);
+        setAuthToken(data.token);
         onLogin();
       } else {
         setError(data.error || "Password salah");

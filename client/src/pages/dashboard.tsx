@@ -41,6 +41,7 @@ import {
 import { useState } from "react";
 import type { SourceImage, Carousel } from "@shared/schema";
 import { API_BASE } from "@/lib/api-base";
+import { clearAuthToken } from "@/lib/auth-token";
 
 // Brand logo SVG
 function BuahSemestaLogo({ className }: { className?: string }) {
@@ -947,7 +948,7 @@ export default function Dashboard() {
               variant="ghost"
               size="sm"
               onClick={() => {
-                sessionStorage.removeItem("auth_token");
+                clearAuthToken();
                 window.location.reload();
               }}
               data-testid="button-logout"
