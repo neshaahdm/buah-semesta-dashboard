@@ -200,8 +200,8 @@ export async function registerRoutes(
     }
   });
 
-  // POST /api/carousels/:id/approve — Approve content
-  app.post("/api/carousels/:id/approve", (req, res) => {
+  // POST /api/carousels/:id/approve — Approve content + auto-upload to Drive
+  app.post("/api/carousels/:id/approve", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       const carousel = storage.getCarousel(id);
