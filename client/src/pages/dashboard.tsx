@@ -461,15 +461,25 @@ function ContentReviewPanel({
     carousel.status === "pending_review" || carousel.status === "rejected";
   const canUpload = carousel.status === "approved";
 
-  const handleDownload = () => {
-    const url = `${API_BASE}/api/carousels/${carousel.id}/download`;
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    toast({ title: "Download started", description: "Your ZIP file is downloading." });
+  const handleDownload = async () => {
+    try {
+      // Fetch the ZIP as a binary blob so it works through any proxy
+      const url = `${API_BASE}/api/carousels/${carousel.id}/download`;
+      const resp = await fetch(url);
+      if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
+      const blob = await resp.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `carousel_${carousel.id}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      toast({ title: "Download dimulai", description: "File ZIP sedang diunduh." });
+    } catch (err: any) {
+      toast({ title: "Download gagal", description: err.message, variant: "destructive" });
+    }
   };
 
   return (
