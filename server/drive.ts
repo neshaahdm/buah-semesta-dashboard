@@ -85,8 +85,10 @@ export async function uploadCarouselToOutput(
   });
   const folderId = folderMeta.data.id!;
 
-  // Upload each slide
-  const OUTPUT_BASE = path.resolve(process.cwd(), "output/carousels");
+  // Upload each slide — use persistent volume path if available
+  const OUTPUT_BASE = process.env.DB_PATH
+    ? path.join(path.dirname(process.env.DB_PATH), "carousels")
+    : path.resolve(process.cwd(), "output/carousels");
   for (let i = 0; i < slidePaths.length; i++) {
     const slidePath = slidePaths[i]; // e.g. "driveFileId/slide_1.jpg"
     const fullPath = path.join(OUTPUT_BASE, slidePath);

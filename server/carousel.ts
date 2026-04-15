@@ -6,7 +6,10 @@ import https from "https";
 import http from "http";
 import Anthropic from "@anthropic-ai/sdk";
 
-const OUTPUT_BASE = path.resolve(process.cwd(), "output/carousels");
+// Use /data/carousels on Railway (persistent volume) or local output/carousels in dev
+const OUTPUT_BASE = process.env.DB_PATH
+  ? path.join(path.dirname(process.env.DB_PATH), "carousels")
+  : path.resolve(process.cwd(), "output/carousels");
 const SLIDE_SIZE = 1080;
 
 // Register Lato fonts — wrapped in try-catch so a missing fontconfig

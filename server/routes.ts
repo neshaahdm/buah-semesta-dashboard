@@ -9,6 +9,11 @@ import path from "path";
 import fs from "fs";
 import archiver from "archiver";
 
+// Use persistent volume path on Railway, local fallback in dev
+const CAROUSEL_OUTPUT = process.env.DB_PATH
+  ? path.join(path.dirname(process.env.DB_PATH), "carousels")
+  : path.resolve(process.cwd(), "output/carousels");
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -41,7 +46,7 @@ export async function registerRoutes(
   // Serve carousel slide images statically
   app.use(
     "/api/slides",
-    express.static("./output/carousels")
+    express.static(CAROUSEL_OUTPUT)
   );
 
   // GET /api/source-images — List all source images from DB
@@ -179,7 +184,7 @@ export async function registerRoutes(
         const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
         if (slides.length > 0) {
           const dirName = slides[0].split("/")[0];
-          const contentFile = path.join("./output/carousels", dirName, "content.json");
+          const contentFile = path.join(CAROUSEL_OUTPUT, dirName, "content.json");
           if (fs.existsSync(contentFile)) {
             fruitName = JSON.parse(fs.readFileSync(contentFile, "utf8")).fruitName;
           }
@@ -217,7 +222,7 @@ export async function registerRoutes(
       try {
         if (slides.length > 0) {
           const dirName = slides[0].split("/")[0];
-          const captionDir = path.join("./output/carousels", dirName);
+          const captionDir = path.join(CAROUSEL_OUTPUT, dirName);
           const captionContent = `${carousel.caption}\n\n${carousel.hashtags}`;
           fs.writeFileSync(path.join(captionDir, "caption.txt"), captionContent, "utf8");
         }
@@ -337,10 +342,7 @@ export async function registerRoutes(
       }
 
       const dirName = slides[0].split("/")[0];
-      const carouselDir = path.join(
-        "./output/carousels",
-        dirName
-      );
+      const carouselDir = path.join(CAROUSEL_OUTPUT, dirName);
 
       // Get source image name for the zip filename
       const sourceImage = storage.getSourceImage(carousel.sourceImageId);
@@ -360,10 +362,7 @@ export async function registerRoutes(
 
       // Add all slides
       for (const slidePath of slides) {
-        const slideFile = path.join(
-          "./output/carousels",
-          slidePath
-        );
+        const slideFile = path.join(CAROUSEL_OUTPUT, slidePath);
         if (fs.existsSync(slideFile)) {
           archive.file(slideFile, { name: path.basename(slideFile) });
         }
