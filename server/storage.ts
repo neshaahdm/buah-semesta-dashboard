@@ -8,7 +8,7 @@ import {
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
-import { eq, sql } from "drizzle-orm";
+import { eq, sql, desc } from "drizzle-orm";
 
 const DB_PATH = process.env.DB_PATH || "data.db";
 const sqlite = new Database(DB_PATH);
@@ -75,7 +75,7 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   getAllSourceImages(): SourceImage[] {
-    return db.select().from(sourceImages).all();
+    return db.select().from(sourceImages).orderBy(desc(sourceImages.id)).all();
   }
 
   getSourceImage(id: number): SourceImage | undefined {
@@ -102,7 +102,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   getAllCarousels(): Carousel[] {
-    return db.select().from(carousels).all();
+    return db.select().from(carousels).orderBy(desc(carousels.id)).all();
   }
 
   getCarousel(id: number): Carousel | undefined {
