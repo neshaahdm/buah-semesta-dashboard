@@ -112,6 +112,10 @@ export async function registerRoutes(
         const captionResult = await generateCaption(sourceImage.fileName, result.slideCount, fruitName);
         caption = captionResult.caption;
         hashtags = captionResult.hashtags;
+        // Save fruitName for later editing
+        if (fruitName) {
+          (req as any)._fruitName = fruitName;
+        }
       } catch (captionErr) {
         console.error("Caption generation failed, using defaults:", captionErr);
         caption = "";
@@ -126,6 +130,7 @@ export async function registerRoutes(
         caption,
         hashtags,
         status: "pending_review",
+        fruitName: (req as any)._fruitName || "",
         reviewNote: "",
         createdAt: new Date().toISOString(),
         approvedAt: "",
@@ -137,6 +142,43 @@ export async function registerRoutes(
       res.json(carousel);
     } catch (err: any) {
       console.error("Carousel generation error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // PATCH /api/carousels/:id/fruit-name — Update fruit name
+  app.patch("/api/carousels/:id/fruit-name", (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      const carousel = storage.getCarousel(id);
+      if (!carousel) {
+        res.status(404).json({ error: "Carousel not found" });
+        return;
+      }
+      const { fruitName } = req.body;
+      if (!fruitName || typeof fruitName !== "string") {
+        res.status(400).json({ error: "fruitName is required" });
+        return;
+      }
+      storage.updateCarouselFruitName(id, fruitName.trim());
+      // Also update content.json on disk so regenerate-caption picks it up
+      try {
+        const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
+        if (slides.length > 0) {
+          const outputDir = path.dirname(path.join(CAROUSEL_OUTPUT, slides[0]));
+          const contentFile = path.join(outputDir, "content.json");
+          if (fs.existsSync(contentFile)) {
+            const content = JSON.parse(fs.readFileSync(contentFile, "utf8"));
+            content.fruitName = fruitName.trim();
+            fs.writeFileSync(contentFile, JSON.stringify(content, null, 2));
+          }
+        }
+      } catch (diskErr) {
+        console.error("Could not update content.json:", diskErr);
+      }
+      const updated = storage.getCarousel(id);
+      res.json(updated);
+    } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });

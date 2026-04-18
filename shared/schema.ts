@@ -21,6 +21,7 @@ export const carousels = sqliteTable("carousels", {
   hashtags: text("hashtags").default(""),
   status: text("status").default("draft"), // draft, pending_review, approved, rejected, uploaded
   reviewNote: text("review_note").default(""),
+  fruitName: text("fruit_name").default(""),
   createdAt: text("created_at").default(""),
   approvedAt: text("approved_at").default(""),
 });

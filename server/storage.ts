@@ -34,10 +34,13 @@ sqlite.exec(`
     hashtags TEXT DEFAULT '',
     status TEXT DEFAULT 'draft',
     review_note TEXT DEFAULT '',
+    fruit_name TEXT DEFAULT '',
     created_at TEXT DEFAULT '',
     approved_at TEXT DEFAULT ''
   );
 `);
+// Add fruit_name column if it doesn't exist yet (migration for existing DBs)
+try { sqlite.exec("ALTER TABLE carousels ADD COLUMN fruit_name TEXT DEFAULT ''"); } catch (_) {}
 
 export const db = drizzle(sqlite);
 
@@ -57,6 +60,7 @@ export interface IStorage {
   updateCarouselStatus(id: number, status: string): void;
   updateCarouselCaption(id: number, caption: string, hashtags: string): void;
   updateCarouselReview(id: number, status: string, note: string): void;
+  updateCarouselFruitName(id: number, fruitName: string): void;
   approveCarousel(id: number): void;
 
   deleteCarousel(id: number): void;
@@ -138,6 +142,13 @@ export class DatabaseStorage implements IStorage {
   updateCarouselReview(id: number, status: string, note: string): void {
     db.update(carousels)
       .set({ status, reviewNote: note })
+      .where(eq(carousels.id, id))
+      .run();
+  }
+
+  updateCarouselFruitName(id: number, fruitName: string): void {
+    db.update(carousels)
+      .set({ fruitName })
       .where(eq(carousels.id, id))
       .run();
   }

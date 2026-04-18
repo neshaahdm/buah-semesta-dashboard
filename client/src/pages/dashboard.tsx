@@ -329,6 +329,8 @@ function ContentReviewPanel({
   const [slideViewIndex, setSlideViewIndex] = useState(0);
   const [showRevisionBox, setShowRevisionBox] = useState(false);
   const [revisionNote, setRevisionNote] = useState("");
+  const [editingFruitName, setEditingFruitName] = useState(false);
+  const [fruitNameText, setFruitNameText] = useState(carousel.fruitName || "");
   const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
 
   const statusInfo = statusConfig[carousel.status || "draft"];
@@ -371,6 +373,24 @@ function ContentReviewPanel({
         description: err.message,
         variant: "destructive",
       });
+    },
+  });
+
+  // Update fruit name mutation
+  const fruitNameMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("PATCH", `/api/carousels/${carousel.id}/fruit-name`, {
+        fruitName: fruitNameText,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
+      setEditingFruitName(false);
+      toast({ title: "Nama buah diperbarui" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Gagal update nama buah", description: err.message, variant: "destructive" });
     },
   });
 
@@ -573,6 +593,60 @@ function ContentReviewPanel({
           <span className="text-xs text-muted-foreground">
             Approved {new Date(carousel.approvedAt).toLocaleDateString()}
           </span>
+        )}
+      </div>
+
+      {/* Fruit Name Section */}
+      <div className="flex items-center gap-2 py-1.5 px-3 rounded-md bg-muted/50 border border-border/50">
+        <span className="text-xs font-semibold text-muted-foreground shrink-0">Nama Buah:</span>
+        {editingFruitName ? (
+          <>
+            <input
+              autoFocus
+              value={fruitNameText}
+              onChange={(e) => setFruitNameText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") fruitNameMutation.mutate();
+                if (e.key === "Escape") { setEditingFruitName(false); setFruitNameText(carousel.fruitName || ""); }
+              }}
+              className="flex-1 text-sm bg-background border border-input rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-ring"
+              placeholder="Masukkan nama buah..."
+              data-testid="fruit-name-input"
+            />
+            <Button
+              size="sm"
+              className="h-7 text-xs px-2"
+              onClick={() => fruitNameMutation.mutate()}
+              disabled={fruitNameMutation.isPending}
+              data-testid="save-fruit-name-btn"
+            >
+              {fruitNameMutation.isPending ? "Menyimpan..." : "Simpan"}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs px-2"
+              onClick={() => { setEditingFruitName(false); setFruitNameText(carousel.fruitName || ""); }}
+            >
+              Batal
+            </Button>
+          </>
+        ) : (
+          <>
+            <span className="flex-1 text-sm font-medium">
+              {carousel.fruitName || <span className="text-muted-foreground italic">Belum terdeteksi</span>}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs px-2"
+              onClick={() => setEditingFruitName(true)}
+              data-testid="edit-fruit-name-btn"
+            >
+              <Pencil className="w-3 h-3 mr-1" />
+              Edit
+            </Button>
+          </>
         )}
       </div>
 
