@@ -556,6 +556,9 @@ export async function generateCarousel(
     fs.writeFileSync(path.join(outputDir, filenames[i]), buf);
   });
 
+  // Save original image for future re-renders (e.g. fruit name correction)
+  fs.writeFileSync(path.join(outputDir, "original.jpg"), imageBuffer);
+
   // Save fruit content so caption regeneration and regeneration can reference it
   fs.writeFileSync(
     path.join(outputDir, "content.json"),
@@ -568,4 +571,67 @@ export async function generateCarousel(
     slidePaths: filenames.map((f) => `${imageId}/${f}`),
     outputDir,
   };
+}
+
+/**
+ * Re-render slides using an overridden fruitName.
+ * Reads existing content.json (keeps all other fields), replaces fruitName,
+ * re-draws the 3 slides, and saves updated content.json.
+ */
+export async function regenerateSlidesWithName(
+  imageId: number,
+  newFruitName: string
+): Promise<void> {
+  const outputDir = path.join(OUTPUT_BASE, String(imageId));
+  const contentFile = path.join(outputDir, "content.json");
+
+  if (!fs.existsSync(contentFile)) {
+    throw new Error(`content.json not found for carousel ${imageId}`);
+  }
+
+  // Load existing content and override only the fruit name
+  const content: FruitContent = JSON.parse(fs.readFileSync(contentFile, "utf8"));
+  content.fruitName = newFruitName;
+
+  // Load the original image (slide_1 can be used as source, but we need original)
+  // Try to re-download from Drive via existing image buffer approach
+  const slide1Path = path.join(outputDir, "slide_1.jpg");
+  if (!fs.existsSync(slide1Path)) {
+    throw new Error(`Slide images not found for carousel ${imageId}`);
+  }
+
+  // Use existing slide as the base image (crop out the panel portion)
+  // Actually: re-render using the raw image stored at outputDir/original.jpg if present,
+  // otherwise use sharp to extract the top portion of slide_1
+  let imageBuffer: Buffer;
+  const originalPath = path.join(outputDir, "original.jpg");
+  if (fs.existsSync(originalPath)) {
+    imageBuffer = fs.readFileSync(originalPath);
+  } else {
+    // Extract only the photo area (top 65%) from slide_1
+    const slide1 = sharp(slide1Path);
+    const meta = await slide1.metadata();
+    const s = meta.width || 1080;
+    const panelY = Math.round(s * 0.655);
+    imageBuffer = await slide1
+      .extract({ left: 0, top: 0, width: s, height: panelY })
+      .resize(s, s, { fit: "cover", position: "top" })
+      .jpeg({ quality: 93 })
+      .toBuffer();
+  }
+
+  // Re-render all 3 slides
+  const [buf1, buf2, buf3] = await Promise.all([
+    createSlide1(imageBuffer, content),
+    createSlide2(imageBuffer, content),
+    createSlide3(imageBuffer, content),
+  ]);
+
+  const filenames = ["slide_1.jpg", "slide_2.jpg", "slide_3.jpg"];
+  [buf1, buf2, buf3].forEach((buf, i) => {
+    fs.writeFileSync(path.join(outputDir, filenames[i]), buf);
+  });
+
+  // Save updated content
+  fs.writeFileSync(contentFile, JSON.stringify(content, null, 2), "utf8");
 }

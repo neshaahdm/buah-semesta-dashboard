@@ -387,7 +387,7 @@ function ContentReviewPanel({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/carousels"] });
       setEditingFruitName(false);
-      toast({ title: "Nama buah diperbarui" });
+      toast({ title: "Nama buah diperbarui", description: "Slide dan caption sudah diperbarui." });
     },
     onError: (err: Error) => {
       toast({ title: "Gagal update nama buah", description: err.message, variant: "destructive" });
@@ -620,7 +620,7 @@ function ContentReviewPanel({
               disabled={fruitNameMutation.isPending}
               data-testid="save-fruit-name-btn"
             >
-              {fruitNameMutation.isPending ? "Menyimpan..." : "Simpan"}
+              {fruitNameMutation.isPending ? "Memproses..." : "Simpan & Render Ulang"}
             </Button>
             <Button
               variant="ghost"

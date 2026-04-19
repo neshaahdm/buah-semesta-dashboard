@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateCarousel } from "./carousel";
+import { generateCarousel, regenerateSlidesWithName } from "./carousel";
 import { generateCaption } from "./caption";
 import { listSourceImages, uploadCarouselToOutput, hasDriveCredentials } from "./drive";
 import express from "express";
@@ -146,8 +146,8 @@ export async function registerRoutes(
     }
   });
 
-  // PATCH /api/carousels/:id/fruit-name — Update fruit name
-  app.patch("/api/carousels/:id/fruit-name", (req, res) => {
+  // PATCH /api/carousels/:id/fruit-name — Update fruit name AND re-render slides + caption
+  app.patch("/api/carousels/:id/fruit-name", async (req, res) => {
     try {
       const id = parseInt(req.params.id, 10);
       const carousel = storage.getCarousel(id);
@@ -160,25 +160,32 @@ export async function registerRoutes(
         res.status(400).json({ error: "fruitName is required" });
         return;
       }
-      storage.updateCarouselFruitName(id, fruitName.trim());
-      // Also update content.json on disk so regenerate-caption picks it up
-      try {
-        const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
-        if (slides.length > 0) {
-          const outputDir = path.dirname(path.join(CAROUSEL_OUTPUT, slides[0]));
-          const contentFile = path.join(outputDir, "content.json");
-          if (fs.existsSync(contentFile)) {
-            const content = JSON.parse(fs.readFileSync(contentFile, "utf8"));
-            content.fruitName = fruitName.trim();
-            fs.writeFileSync(contentFile, JSON.stringify(content, null, 2));
-          }
-        }
-      } catch (diskErr) {
-        console.error("Could not update content.json:", diskErr);
+      const cleanName = fruitName.trim();
+
+      // Save to DB
+      storage.updateCarouselFruitName(id, cleanName);
+
+      // Re-render slides with the corrected fruit name
+      const slides: string[] = JSON.parse(carousel.slidePaths || "[]");
+      if (slides.length > 0) {
+        const imageId = parseInt(slides[0].split("/")[0], 10);
+        await regenerateSlidesWithName(imageId, cleanName);
       }
+
+      // Regenerate caption with corrected fruit name
+      const sourceImage = storage.getSourceImage(carousel.sourceImageId);
+      const fileName = sourceImage?.fileName || "";
+      try {
+        const captionResult = await generateCaption(fileName, carousel.slideCount || 3, cleanName);
+        storage.updateCarouselCaption(id, captionResult.caption, captionResult.hashtags);
+      } catch (capErr) {
+        console.error("Caption regen failed:", capErr);
+      }
+
       const updated = storage.getCarousel(id);
       res.json(updated);
     } catch (err: any) {
+      console.error("fruit-name update error:", err);
       res.status(500).json({ error: err.message });
     }
   });
