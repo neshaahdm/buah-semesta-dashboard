@@ -137,6 +137,54 @@ Balas HANYA dalam JSON berikut (tanpa markdown):
   return JSON.parse(raw) as FruitContent;
 }
 
+/**
+ * Generate full fruit content by name only (no image needed).
+ * Used when user corrects the AI-identified fruit name.
+ */
+async function generateFruitContentByName(fruitName: string): Promise<FruitContent> {
+  const client = new Anthropic();
+  const prompt = `Kamu adalah teman yang tahu banyak soal buah dan suka bercerita dengan hangat ke teman-teman di Instagram.
+
+Buat konten Instagram carousel untuk "Buah Semesta" tentang buah: ${fruitName}
+
+Buat konten dalam Bahasa Indonesia yang hangat dan personal seperti ngobrol dengan teman.
+
+Balas HANYA dalam JSON berikut (tanpa markdown):
+{
+  "fruitName": "${fruitName}",
+  "benefitHook": "1 kalimat pembuka hangat soal manfaat (maks 10 kata, pakai 'kamu')",
+  "benefits": [
+    "manfaat 1 singkat & bertenaga (maks 6 kata)",
+    "manfaat 2 singkat & bertenaga (maks 6 kata)",
+    "manfaat 3 singkat & bertenaga (maks 6 kata)"
+  ],
+  "chooseHook": "1 kalimat ajakan tips memilih, santai (maks 10 kata)",
+  "howToChoose": [
+    "tips pilih 1 — gaya ngobrol santai (maks 12 kata)",
+    "tips pilih 2 — gaya ngobrol santai (maks 12 kata)",
+    "tips pilih 3 — gaya ngobrol santai (maks 12 kata)"
+  ],
+  "storeHook": "1 kalimat ajakan tips menyimpan, hangat (maks 10 kata)",
+  "howToStore": [
+    "tips simpan 1 — gaya teman ngobrol (maks 12 kata)",
+    "tips simpan 2 — gaya teman ngobrol (maks 12 kata)",
+    "tips simpan 3 — gaya teman ngobrol (maks 12 kata)"
+  ]
+}`;
+
+  const res = await client.messages.create({
+    model: "claude-sonnet-4-5",
+    max_tokens: 600,
+    messages: [{ role: "user", content: prompt }],
+  });
+  const raw = (res.content[0] as any).text.trim()
+    .replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+  const parsed = JSON.parse(raw) as FruitContent;
+  // Force fruitName to exactly what user typed
+  parsed.fruitName = fruitName;
+  return parsed;
+}
+
 /** Draw cover-fit image over entire canvas */
 function drawFullBackground(ctx: CanvasRenderingContext2D, img: any, s: number) {
   const scale = Math.max(s / img.width, s / img.height);
@@ -589,9 +637,8 @@ export async function regenerateSlidesWithName(
     throw new Error(`content.json not found for carousel ${imageId}`);
   }
 
-  // Load existing content and override only the fruit name
-  const content: FruitContent = JSON.parse(fs.readFileSync(contentFile, "utf8"));
-  content.fruitName = newFruitName;
+  // Generate FULL new content for the corrected fruit name (benefits, hooks, tips all fresh)
+  const content: FruitContent = await generateFruitContentByName(newFruitName);
 
   // Load the original image (slide_1 can be used as source, but we need original)
   // Try to re-download from Drive via existing image buffer approach
