@@ -87,38 +87,6 @@ app.use((req, res, next) => {
     await setupVite(httpServer, app);
   }
 
-  // Auto-scan Drive on startup if DB is empty (handles fresh Railway deploys)
-  try {
-    const stats = storage.getStats();
-    if (stats.totalImages === 0 && hasDriveCredentials()) {
-      log("DB is empty — auto-scanning Drive for images...", "startup");
-      const driveFiles = await listSourceImages();
-      let inserted = 0;
-      for (const file of driveFiles) {
-        const existing = storage.getSourceImageByDriveId(file.id);
-        if (!existing) {
-          const thumbnailUrl = `https://drive.google.com/thumbnail?id=${file.id}&sz=w400`;
-          storage.createSourceImage({
-            driveFileId: file.id,
-            fileName: file.name,
-            mimeType: file.mimeType,
-            thumbnailUrl,
-            status: "pending",
-            createdAt: new Date().toISOString(),
-          });
-          inserted++;
-        }
-      }
-      log(`Auto-scan complete: inserted ${inserted} images from Drive`, "startup");
-    } else if (stats.totalImages > 0) {
-      log(`DB already has ${stats.totalImages} images, skipping auto-scan`, "startup");
-    } else {
-      log("No Drive credentials, skipping auto-scan", "startup");
-    }
-  } catch (err) {
-    log(`Auto-scan failed (non-fatal): ${err}`, "startup");
-  }
-
   // ALWAYS serve the app on the port specified in the environment variable PORT
   // Other ports are firewalled. Default to 5000 if not specified.
   // this serves both the API and the client.
